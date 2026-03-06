@@ -30,7 +30,7 @@ vim.opt.splitright = true
 -- 其他设置
 vim.opt.backspace = "indent,eol,start"
 vim.opt.clipboard = "unnamedplus"
-vim.opt.mouse = "a"
+vim.opt.mouse = ""
 vim.opt.timeoutlen = 300
 vim.opt.updatetime = 300
 

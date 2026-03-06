@@ -33,7 +33,13 @@ require("lazy").setup({
   -- 运动插件
   require("plugins.motion"),
   
+  -- Flycode插件
+  require("plugins.flycode"),
+  
   -- 其他插件可以在这里添加
+  
+  -- Org模式
+  require("plugins.orgmode"),
 }, {
   install = {
     colorscheme = { "molokai" },
@@ -46,3 +52,4 @@ require("lazy").setup({
     notify = false,
   },
 })
+

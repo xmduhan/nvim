@@ -10,3 +10,16 @@ require("config.autocmds")
 
 -- 延迟加载插件
 require("plugins.init")
+
+require("nvim-tree").setup({
+  renderer = {
+    icons = {
+      show = {
+        file = false,
+        folder = false,
+        folder_arrow = false,
+        git = false,
+      },
+    },
+  },
+})
