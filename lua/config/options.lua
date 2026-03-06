@@ -9,6 +9,10 @@ vim.opt.termguicolors = true
 vim.opt.showmode = false
 vim.opt.signcolumn = "yes"
 
+-- 光标形状设置
+-- 在insert模式下使用块状光标，normal模式下使用竖线光标
+vim.opt.guicursor = "n-v-c:block,i-ci-ve:ver25,r-cr:hor20,o:hor50,a:blinkwait700-blinkoff400-blinkon250-Cursor/lCursor,sm:block-blinkwait175-blinkoff150-blinkon175"
+
 -- 缩进设置
 vim.opt.autoindent = true
 vim.opt.smartindent = true
@@ -50,3 +54,4 @@ vim.opt.undodir = vim.fn.stdpath("data") .. "/undo"
 
 -- 补全设置
 vim.opt.completeopt = "menuone,noselect"
+
