@@ -1,4 +1,5 @@
 -- Neovim主配置文件
+--
 -- 设置leader键
 vim.g.mapleader = " "
 vim.g.maplocalleader = ","
