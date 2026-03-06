@@ -1,7 +1,7 @@
 return {
   {
     "preservim/vim-markdown",
-    ft = "markdown",
+    lazy = false,
     dependencies = {
       "godlygeek/tabular",
     },
@@ -19,6 +19,8 @@ return {
   },
   {
     "godlygeek/tabular",
+    lazy = false,
     cmd = "Tabularize",
   },
 }
+

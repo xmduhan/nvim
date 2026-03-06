@@ -65,3 +65,4 @@ M.touch_file_under_cursor = touch_file_under_cursor
 M.insert_datetime = insert_datetime
 
 return M
+

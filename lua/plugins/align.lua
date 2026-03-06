@@ -1,6 +1,7 @@
 return {
   {
     "junegunn/vim-easy-align",
+    lazy = false,
     keys = {
       { "ga", "<Plug>(EasyAlign)", mode = { "n", "x" } },
     },
@@ -11,3 +12,4 @@ return {
     end,
   },
 }
+

@@ -55,3 +55,4 @@ vim.opt.undodir = vim.fn.stdpath("data") .. "/undo"
 -- 补全设置
 vim.opt.completeopt = "menuone,noselect"
 
+

@@ -1,6 +1,7 @@
 return {
   {
     "easymotion/vim-easymotion",
+    lazy = false,
     keys = {
       { "<leader>f", "<Plug>(easymotion-overwin-w)", mode = { "n", "x", "o" } },
       { "<leader>j", "<Plug>(easymotion-bd-jk)", mode = { "n", "x", "o" } },
@@ -11,3 +12,4 @@ return {
     end,
   },
 }
+

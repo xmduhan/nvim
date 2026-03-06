@@ -1,6 +1,7 @@
 return {
   {
     "tpope/vim-fugitive",
+    lazy = false,
     cmd = { "G", "Git", "Gdiffsplit", "Gread", "Gwrite", "Ggrep", "GMove", "GDelete", "GBrowse" },
     config = function()
       -- 添加自定义映射
@@ -11,3 +12,4 @@ return {
     end,
   },
 }
+
