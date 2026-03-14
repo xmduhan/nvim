@@ -35,8 +35,12 @@ vim.opt.splitright = true
 vim.opt.backspace = "indent,eol,start"
 vim.opt.clipboard = "unnamedplus"
 vim.opt.mouse = ""
-vim.opt.timeoutlen = 300
 vim.opt.updatetime = 300
+
+vim.opt.timeout = true
+vim.opt.timeoutlen = 2000   
+vim.opt.ttimeout = true
+vim.opt.ttimeoutlen = 50    
 
 -- 折叠设置
 vim.opt.foldmethod = "indent"

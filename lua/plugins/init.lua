@@ -16,25 +16,25 @@ require("lazy").setup({
   { "folke/lazy.nvim", version = "*" },
   
   -- 颜色主题
-  require("plugins.colorscheme"),
+  -- require("plugins.colorscheme"),
   
   -- 文件浏览器
-  require("plugins.explorer"),
+  -- require("plugins.explorer"),
   
   -- Markdown支持
-  require("plugins.markdown"),
+  -- require("plugins.markdown"),
   
   -- Git集成
-  require("plugins.git"),
+  -- require("plugins.git"),
   
   -- 对齐工具
-  require("plugins.align"),
+  -- require("plugins.align"),
   
   -- 运动插件
-  require("plugins.motion"),
+  -- require("plugins.motion"),
   
   -- Flycode插件
-  require("plugins.flycode"),
+  -- require("plugins.flycode"),
   
   -- 其他插件可以在这里添加
   

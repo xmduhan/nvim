@@ -1,15 +1,13 @@
 return {
   {
     "nvim-orgmode/orgmode",
-    lazy = false,
     ft = { "org" },
     config = function()
       require("orgmode").setup({
         org_agenda_files = { "~/org/**/*" },
         org_default_notes_file = "~/org/notes.org",
+	win_split_mode = "vertical"
       })
-     vim.lsp.enable('org')
     end,
   },
 }
-
