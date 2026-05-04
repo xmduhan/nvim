@@ -31,7 +31,7 @@ require("lazy").setup({
   -- require("plugins.align"),
 
   -- 运动插件
-  -- require("plugins.motion"),
+  require("plugins.motion"),
 
   -- Flycode插件
   require("plugins.flycode"),
