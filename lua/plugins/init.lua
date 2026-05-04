@@ -21,9 +21,6 @@ require("lazy").setup({
   -- 文件浏览器
   -- require("plugins.explorer"),
 
-  -- Markdown支持
-  require("plugins.markdown"),
-
   -- Git集成
   require("plugins.git"),
 
@@ -50,3 +47,6 @@ require("lazy").setup({
     notify = false,
   },
 })
+
+-- Markdown 运行时配置（非插件 spec）：内置 foldexpr + TS/syntax fallback
+require("plugins.markdown").setup()

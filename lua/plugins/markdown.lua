@@ -1,42 +1,146 @@
-return {
-  {
-    "preservim/vim-markdown",
-    lazy = false,
-    dependencies = {
-      "godlygeek/tabular",
-    },
-    config = function()
-      -- 你当前“markdown 无法折叠”最常见原因：这里把 vim-markdown 的折叠功能禁用了
-      -- 1 = 禁用折叠；0 = 启用折叠
-      vim.g.vim_markdown_folding_disabled = 0
+-- 目标：尽量用 Neovim 内置能力覆盖 Markdown 的
+-- 1) 大纲折叠 2) 代码块折叠 3) 语法高亮 4) 尽量不和现有设置冲突
+--
+-- 说明：
+-- - 这个文件【不是插件 spec】；它是“运行时配置模块”。
+-- - lazy.nvim 需要的插件 spec 是 { "author/repo", ... } 这种表。
+-- - 因此该模块需要由你的 init 或其它地方 require() 来执行 setup。
+--
+-- 功能：
+-- - 折叠：对 markdown buffer 使用 foldmethod=expr + 自定义 foldexpr
+-- - 大纲：#..###### 与 Setext(===/---)
+-- - 代码块：```/~~~ fenced code block
+-- - 高亮：优先内置 Tree-sitter（若无 parser 则退回 syntax）
 
-      -- 可选：默认折叠级别（越小折叠越多；99 通常等于几乎不折叠）
-      -- vim.g.vim_markdown_folding_level = 1
+local M = {}
 
-      vim.g.vim_markdown_toc_autofit = 1
-      vim.g.vim_markdown_conceal = 0
-      vim.g.vim_markdown_conceal_code_blocks = 0
-      vim.g.vim_markdown_frontmatter = 1
-      vim.g.vim_markdown_strikethrough = 1
-      vim.g.vim_markdown_autowrite = 1
-      vim.g.vim_markdown_edit_url_in = "tab"
-      vim.g.vim_markdown_follow_anchor = 1
+local function count_indent(s)
+  local _, n = s:find("^%s+")
+  return n or 0
+end
 
-      -- 确保 markdown buffer 使用折叠表达式（由 vim-markdown 提供）
-      vim.api.nvim_create_autocmd("FileType", {
-        pattern = { "markdown" },
-        callback = function()
-          vim.opt_local.foldmethod = "expr"
-          vim.opt_local.foldexpr = "MarkdownFold()"
-          -- 需要有折叠才能看到效果；可按需调整
-          vim.opt_local.foldlevel = 99
-        end,
-      })
+local function is_blank(s)
+  return s:match("^%s*$") ~= nil
+end
+
+local function is_fence_line(s)
+  -- ``` 或 ~~~，允许前置空白
+  return s:match("^%s*```+") ~= nil or s:match("^%s*~~~+") ~= nil
+end
+
+local function is_atx_heading(s)
+  local hashes = s:match("^%s*(#+)%s+")
+  if not hashes then
+    return nil
+  end
+  local level = #hashes
+  if level >= 1 and level <= 6 then
+    return level
+  end
+  return nil
+end
+
+local function is_setext_underline(s)
+  -- setext: 下一行是 === 或 ---
+  if s:match("^%s*===+%s*$") then
+    return 1
+  end
+  if s:match("^%s*---+%s*$") then
+    return 2
+  end
+  return nil
+end
+
+-- Foldexpr：返回
+--  - ">N" 开始一个 N 级 fold
+--  - "aN" 延续/调整 fold 级别
+--  - "=" 保持
+--  - "0" 不折叠
+function M.markdown_foldexpr(lnum)
+  local line = vim.fn.getline(lnum)
+
+  -- fenced code block：扫描到当前行来判断是否在 fence 内（简单可靠）
+  local in_fence = false
+  local fence_indent = 0
+  for i = 1, lnum do
+    local l = vim.fn.getline(i)
+    if is_fence_line(l) then
+      local ind = count_indent(l)
+      if not in_fence then
+        in_fence = true
+        fence_indent = ind
+      else
+        if ind <= fence_indent then
+          in_fence = false
+          fence_indent = 0
+        end
+      end
+    end
+  end
+
+  -- fence 行：若是 opening fence 则开 fold
+  if is_fence_line(line) then
+    local was_in_fence = false
+    local was_fence_indent = 0
+    for i = 1, lnum - 1 do
+      local l = vim.fn.getline(i)
+      if is_fence_line(l) then
+        local ii = count_indent(l)
+        if not was_in_fence then
+          was_in_fence = true
+          was_fence_indent = ii
+        else
+          if ii <= was_fence_indent then
+            was_in_fence = false
+            was_fence_indent = 0
+          end
+        end
+      end
+    end
+
+    if not was_in_fence then
+      return ">7" -- opening fence
+    end
+    return "=" -- closing fence
+  end
+
+  if in_fence then
+    return "a7"
+  end
+
+  local h = is_atx_heading(line)
+  if h then
+    return ">" .. tostring(h)
+  end
+
+  local next_line = vim.fn.getline(lnum + 1)
+  if next_line and next_line ~= "" then
+    local setext = is_setext_underline(next_line)
+    if setext and not is_blank(line) then
+      return ">" .. tostring(setext)
+    end
+  end
+
+  return "="
+end
+
+function M.setup()
+  vim.api.nvim_create_autocmd("FileType", {
+    pattern = { "markdown" },
+    callback = function(ev)
+      vim.opt_local.foldmethod = "expr"
+      vim.opt_local.foldexpr = "v:lua.require('plugins.markdown').markdown_foldexpr(v:lnum)"
+
+      vim.opt_local.foldlevel = 99
+      vim.opt_local.foldenable = true
+
+      -- 高亮：有 TS parser 就用内置 TS 高亮，否则 fallback 到传统 syntax
+      local has_ts = pcall(vim.treesitter.get_parser, ev.buf)
+      if not has_ts then
+        pcall(vim.cmd, "syntax enable")
+      end
     end,
-  },
-  {
-    "godlygeek/tabular",
-    lazy = false,
-    cmd = "Tabularize",
-  },
-}
+  })
+end
+
+return M
