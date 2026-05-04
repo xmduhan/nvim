@@ -193,6 +193,40 @@ return {
 
       -- 设置 F7 映射（已在 keymaps.lua 中配置，这里确保插件加载后可用）
       vim.keymap.set("n", "<F7>", ":execute 'r!'.getline('.')<CR>", { desc = "Execute current line" })
+
+      -- 自检命令：快速判断是否加载/是否有映射/当前 ft
+      vim.api.nvim_create_user_command("FlycodeHealth", function()
+        local lines = {}
+        local function add(s)
+          table.insert(lines, s)
+        end
+
+        add("FlycodeHealth")
+        add("- nvim: " .. vim.version().major .. "." .. vim.version().minor .. "." .. vim.version().patch)
+        add("- filetype: " .. tostring(vim.bo.filetype))
+
+        local lazy_ok, lazy = pcall(require, "lazy")
+        add("- lazy: " .. (lazy_ok and "OK" or "NOT FOUND"))
+
+        local flycode_loaded = false
+        if lazy_ok and type(lazy.plugins) == "function" then
+          local p = lazy.plugins()
+          if type(p) == "table" then
+            for _, pl in pairs(p) do
+              if pl and pl.name == "flycode" then
+                flycode_loaded = pl._ and pl._.loaded or false
+                break
+              end
+            end
+          end
+        end
+        add("- plugin(flycode) loaded: " .. tostring(flycode_loaded))
+
+        local f8 = vim.fn.maparg("<F8>", "n")
+        add("- map <F8> (normal): " .. (f8 ~= "" and f8 or "<none>"))
+
+        vim.notify(table.concat(lines, "\n"), vim.log.levels.INFO)
+      end, { desc = "Check flycode/keymaps status" })
     end,
   },
 }

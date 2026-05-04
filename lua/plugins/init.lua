@@ -22,7 +22,7 @@ require("lazy").setup({
   -- require("plugins.explorer"),
 
   -- Markdown支持
-  -- require("plugins.markdown"),
+  require("plugins.markdown"),
 
   -- Git集成
   require("plugins.git"),
