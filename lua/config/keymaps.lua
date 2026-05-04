@@ -37,7 +37,22 @@ map("n", "<F3>", function() require("config.functions").toggle_line_numbers() en
 map("n", "<F7>", ":execute 'r!'.getline('.')<CR>", { desc = "Execute current line" })
 
 -- 回车键增强：从本行按 [空格 或 :] 切分，找最近的合法路径(文件/目录)并保存跳转
-map("n", "<CR>", function() require("config.functions").save_and_goto_nearest_path_in_line() end, { desc = "Save and goto nearest path in line" })
+-- 注意：orgmode 常用 <CR>/<TAB> 做折叠/展开；全局覆盖 <CR> 会导致 org 里“回车折叠”失效。
+-- 这里改为：非 org 文件才映射 <CR>，org 文件保持默认行为。
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = "*",
+  callback = function(ev)
+    if vim.bo[ev.buf].filetype == "org" then
+      return
+    end
+    vim.keymap.set(
+      "n",
+      "<CR>",
+      function() require("config.functions").save_and_goto_nearest_path_in_line() end,
+      { desc = "Save and goto nearest path in line", buffer = ev.buf }
+    )
+  end,
+})
 
 -- 配置编辑
 map("n", "<leader>main", ":e ~/.config/nvim/init.lua<CR>", { desc = "Edit main config" })
