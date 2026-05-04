@@ -11,6 +11,7 @@
 -- - 大纲：#..###### 与 Setext(===/---)
 -- - 代码块：```/~~~ fenced code block
 -- - 高亮：优先内置 Tree-sitter（若无 parser 则退回 syntax）
+-- - 操作：在 markdown buffer 用 <Tab> 开/关当前 fold（更顺手）
 
 local M = {}
 
@@ -124,6 +125,16 @@ function M.markdown_foldexpr(lnum)
   return "="
 end
 
+local function toggle_fold_under_cursor()
+  -- foldclosed('.') != -1 表示当前行在一个“已关闭”的 fold 里
+  if vim.fn.foldclosed(".") ~= -1 then
+    vim.cmd("normal! zo")
+  else
+    -- 若当前行不在 fold 内，zc 不会做任何事；但这是预期行为
+    vim.cmd("normal! zc")
+  end
+end
+
 function M.setup()
   vim.api.nvim_create_autocmd("FileType", {
     pattern = { "markdown" },
@@ -133,6 +144,9 @@ function M.setup()
 
       vim.opt_local.foldlevel = 99
       vim.opt_local.foldenable = true
+
+      -- 用 <Tab> 开/关折叠（仅 markdown buffer，不影响你其它文件类型/现有映射）
+      vim.keymap.set("n", "<Tab>", toggle_fold_under_cursor, { desc = "Toggle fold", buffer = ev.buf, silent = true })
 
       -- 高亮：有 TS parser 就用内置 TS 高亮，否则 fallback 到传统 syntax
       local has_ts = pcall(vim.treesitter.get_parser, ev.buf)
