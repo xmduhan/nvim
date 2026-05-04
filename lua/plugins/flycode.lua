@@ -32,15 +32,47 @@ return {
         return (s:gsub("^%s+", ""):gsub("%s+$", ""))
       end
 
-      -- 解析 fence 行：```lang xxx 或 ```lang{...}
-      local function parse_fence_lang(fence_line)
-        local token = fence_line:match("^```%s*([^%s]+)")
-        if not token or token == "" then
-          return nil
+      local function shell_join(args)
+        local escaped = {}
+        for _, a in ipairs(args) do
+          table.insert(escaped, vim.fn.shellescape(a))
         end
-        token = token:gsub("%b{}", "")
-        token = token:lower()
-        return token
+        return table.concat(escaped, " ")
+      end
+
+      -- 解析 fence 行：```lang args... 或 ```lang{...}
+      -- 返回：lang, args(list)
+      local function parse_fence(fence_line)
+        local rest = fence_line:match("^```%s*(.*)$")
+        if not rest then
+          return nil, {}
+        end
+        rest = trim(rest)
+        if rest == "" then
+          return nil, {}
+        end
+
+        -- 取第一个 token 作为 lang，其余作为 args（简单按空白切分）
+        local tokens = {}
+        for t in rest:gmatch("%S+") do
+          table.insert(tokens, t)
+        end
+
+        local lang = tokens[1]
+        if not lang or lang == "" then
+          return nil, {}
+        end
+
+        -- 去掉 { ... } 配置块，例如：bash{cmd} / flycode{...}
+        lang = lang:gsub("%b{}", "")
+        lang = lang:lower()
+
+        local args = {}
+        for i = 2, #tokens do
+          table.insert(args, tokens[i])
+        end
+
+        return lang, args
       end
 
       -- 自定义函数：执行当前 Markdown 代码块
@@ -100,9 +132,9 @@ return {
           return
         end
 
-        -- 解析语言
+        -- 解析语言与参数
         local fence = vim.fn.getline(start_line)
-        local lang = parse_fence_lang(fence)
+        local lang, args = parse_fence(fence)
 
         -- 创建临时文件
         local temp_file = vim.fn.tempname() .. ".flycode"
@@ -133,14 +165,18 @@ return {
         elseif lang == "ruby" or lang == "rb" then
           cmd = "ruby " .. vim.fn.shellescape(temp_file)
         elseif lang == "flycode" then
-          -- 你自定义的命令：把代码块内容作为 stdin 交给 flycode
-          -- 约定：系统中存在可执行的 `flycode` 命令（或在 PATH 中），它读取 stdin
-          cmd = "flycode < " .. vim.fn.shellescape(temp_file)
+          -- 支持形如：```flycode flycode.JSONFlow Poe:gpt-5.2
+          -- 行为：把代码块写入 tmpfile，然后执行：flycode <arg1> <arg2> ... <tmpfile>
+          local fly_args = {}
+          for _, a in ipairs(args or {}) do
+            table.insert(fly_args, a)
+          end
+          table.insert(fly_args, temp_file)
+          cmd = "flycode " .. shell_join(fly_args)
         else
           local hint = lang and ("Unknown code block language: " .. lang) or "Missing code block language"
           vim.notify(
-            hint
-              .. ". Supported: python/js/ts/bash/sh/lua/ruby/flycode. Example: ```flycode",
+            hint .. ". Supported: python/js/ts/bash/sh/lua/ruby/flycode. Example: ```flycode <subcmd> <model>",
             vim.log.levels.WARN
           )
           return
