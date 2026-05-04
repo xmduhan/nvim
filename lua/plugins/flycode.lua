@@ -191,8 +191,7 @@ return {
       -- 设置 F8 映射
       vim.keymap.set("n", "<F8>", execute_markdown_code_block, { desc = "Execute Markdown code block" })
 
-      -- 设置 F7 映射（已在 keymaps.lua 中配置，这里确保插件加载后可用）
-      vim.keymap.set("n", "<F7>", ":execute 'r!'.getline('.')<CR>", { desc = "Execute current line" })
+      -- F7 映射在 keymaps.lua 中统一配置（避免重复/覆盖）
 
       -- 自检命令：快速判断是否加载/是否有映射/当前 ft
       vim.api.nvim_create_user_command("FlycodeHealth", function()
@@ -224,6 +223,9 @@ return {
 
         local f8 = vim.fn.maparg("<F8>", "n")
         add("- map <F8> (normal): " .. (f8 ~= "" and f8 or "<none>"))
+
+        local f7 = vim.fn.maparg("<F7>", "n")
+        add("- map <F7> (normal): " .. (f7 ~= "" and f7 or "<none>"))
 
         vim.notify(table.concat(lines, "\n"), vim.log.levels.INFO)
       end, { desc = "Check flycode/keymaps status" })

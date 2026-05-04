@@ -34,7 +34,15 @@ map("n", "<C-S>", ":w<CR>", { desc = "Save file" })
 
 -- 功能键
 map("n", "<F3>", function() require("config.functions").toggle_line_numbers() end, { desc = "Toggle line numbers" })
-map("n", "<F7>", ":execute 'r!'.getline('.')<CR>", { desc = "Execute current line" })
+
+-- F7：执行当前行作为 shell 命令；若以 "!xxx:" 开头则去掉该前缀再执行
+map("n", "<F7>", function()
+  local line = vim.api.nvim_get_current_line()
+  -- 匹配：可选前导空白 + !任意非冒号内容:
+  -- 例："!sh: ls -alh" => "ls -alh"
+  line = line:gsub("^%s*!([^:]*):%s*", "")
+  vim.cmd("execute 'r!' .. " .. vim.fn.string(line))
+end, { desc = "Execute current line (strip !xxx: prefix)" })
 
 -- 回车键增强：从本行按 [空格 或 :] 切分，找最近的合法路径(文件/目录)并保存跳转
 -- 说明：orgmode 常用 <CR>/<TAB> 做折叠/展开。
