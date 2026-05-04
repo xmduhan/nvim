@@ -28,6 +28,21 @@ return {
         },
       }
 
+      local function trim(s)
+        return (s:gsub("^%s+", ""):gsub("%s+$", ""))
+      end
+
+      -- 解析 fence 行：```lang xxx 或 ```lang{...}
+      local function parse_fence_lang(fence_line)
+        local token = fence_line:match("^```%s*([^%s]+)")
+        if not token or token == "" then
+          return nil
+        end
+        token = token:gsub("%b{}", "")
+        token = token:lower()
+        return token
+      end
+
       -- 自定义函数：执行当前 Markdown 代码块
       local function execute_markdown_code_block()
         vim.cmd("w")
@@ -44,6 +59,11 @@ return {
           start_line = start_line - 1
         end
 
+        if start_line == 1 and not vim.fn.getline(start_line):match("^```") then
+          vim.notify("No fenced code block found (missing ```)", vim.log.levels.WARN)
+          return
+        end
+
         -- 查找代码块结束
         local end_line = current_line
         local total_lines = vim.fn.line("$")
@@ -55,25 +75,34 @@ return {
           end_line = end_line + 1
         end
 
+        if end_line > total_lines then
+          vim.notify("Unclosed fenced code block (missing closing ```)", vim.log.levels.WARN)
+          return
+        end
+
         -- 提取代码块内容
         local code_lines = {}
         for i = start_line + 1, end_line - 1 do
           table.insert(code_lines, vim.fn.getline(i))
         end
 
-        if #code_lines == 0 then
-          vim.notify("No code block found", vim.log.levels.WARN)
+        -- 若块内全是空行，也视为未找到可执行内容
+        local has_nonempty = false
+        for _, l in ipairs(code_lines) do
+          if trim(l) ~= "" then
+            has_nonempty = true
+            break
+          end
+        end
+
+        if not has_nonempty then
+          vim.notify("No code found in this fenced block", vim.log.levels.WARN)
           return
         end
 
-        -- 解析语言：允许 ```python linenums / ```bash{...} / ```sh 等
-        -- 取 ``` 后的第一个 token，并去掉可能的 {..} 后缀
+        -- 解析语言
         local fence = vim.fn.getline(start_line)
-        local lang = fence:match("^```%s*([^%s]+)")
-        if lang then
-          lang = lang:gsub("%b{}", "")
-          lang = lang:lower()
-        end
+        local lang = parse_fence_lang(fence)
 
         -- 创建临时文件
         local temp_file = vim.fn.tempname() .. ".flycode"
@@ -89,7 +118,7 @@ return {
         end
         file:close()
 
-        -- 根据语言执行（不再直接执行 temp_file，避免 permission denied）
+        -- 根据语言执行
         local cmd
         if lang == "python" or lang == "py" then
           cmd = "python3 " .. vim.fn.shellescape(temp_file)
@@ -103,9 +132,17 @@ return {
           cmd = "lua " .. vim.fn.shellescape(temp_file)
         elseif lang == "ruby" or lang == "rb" then
           cmd = "ruby " .. vim.fn.shellescape(temp_file)
+        elseif lang == "flycode" then
+          -- 你自定义的命令：把代码块内容作为 stdin 交给 flycode
+          -- 约定：系统中存在可执行的 `flycode` 命令（或在 PATH 中），它读取 stdin
+          cmd = "flycode < " .. vim.fn.shellescape(temp_file)
         else
           local hint = lang and ("Unknown code block language: " .. lang) or "Missing code block language"
-          vim.notify(hint .. ". Please use fenced code block like ```python / ```bash / ```lua", vim.log.levels.WARN)
+          vim.notify(
+            hint
+              .. ". Supported: python/js/ts/bash/sh/lua/ruby/flycode. Example: ```flycode",
+            vim.log.levels.WARN
+          )
           return
         end
 
