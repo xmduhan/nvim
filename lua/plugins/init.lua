@@ -16,7 +16,7 @@ require("lazy").setup({
   { "folke/lazy.nvim", version = "*" },
 
   -- 颜色主题
-  -- require("plugins.colorscheme"),
+  require("plugins.colorscheme"),
 
   -- 文件浏览器
   -- require("plugins.explorer"),

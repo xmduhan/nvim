@@ -2,6 +2,10 @@
 vim.opt.encoding = "utf-8"
 vim.opt.fileencoding = "utf-8"
 
+-- 确保启用 filetype 与语法高亮
+vim.cmd("filetype plugin indent on")
+vim.cmd("syntax on")
+
 -- 界面设置
 vim.opt.number = true
 vim.opt.cursorline = true
