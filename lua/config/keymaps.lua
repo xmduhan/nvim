@@ -37,20 +37,61 @@ map("n", "<F3>", function() require("config.functions").toggle_line_numbers() en
 map("n", "<F7>", ":execute 'r!'.getline('.')<CR>", { desc = "Execute current line" })
 
 -- 回车键增强：从本行按 [空格 或 :] 切分，找最近的合法路径(文件/目录)并保存跳转
--- 注意：orgmode 常用 <CR>/<TAB> 做折叠/展开；全局覆盖 <CR> 会导致 org 里“回车折叠”失效。
--- 这里改为：非 org 文件才映射 <CR>，org 文件保持默认行为。
+-- 说明：orgmode 常用 <CR>/<TAB> 做折叠/展开。
+-- 这里的策略是：
+-- - 若当前行能解析出“存在的文件/目录路径”，则执行跳转
+-- - 否则回退到该 filetype 原本的 <CR> 行为（不影响 org 的回车折叠/新行等）
 vim.api.nvim_create_autocmd("FileType", {
   pattern = "*",
   callback = function(ev)
-    if vim.bo[ev.buf].filetype == "org" then
-      return
+    local rhs = function()
+      local ok = pcall(function()
+        require("config.functions").save_and_goto_nearest_path_in_line()
+      end)
+
+      -- 没有找到路径时 save_and_goto... 会 notify(WARN)；这里用启发式：
+      -- 若执行失败(异常)则直接回退；正常情况下若无路径也不应阻断默认回车。
+      if not ok then
+        local keys = vim.api.nvim_replace_termcodes("<CR>", true, false, true)
+        vim.api.nvim_feedkeys(keys, "n", false)
+        return
+      end
+
+      -- 如果没有跳转，函数内部会提示 warn，但我们仍应回退到默认 <CR>
+      -- 通过检测当前 buffer/光标是否变化不可靠，这里采用更简单的方式：
+      -- 当本行不存在任何可打开的路径时，save_and_goto... 会提前 return。
+      -- 为了不影响 org 的默认行为，我们在调用前先快速探测一次是否存在候选。
     end
-    vim.keymap.set(
-      "n",
-      "<CR>",
-      function() require("config.functions").save_and_goto_nearest_path_in_line() end,
-      { desc = "Save and goto nearest path in line", buffer = ev.buf }
-    )
+
+    local function has_openable_path_in_line()
+      local line = vim.api.nvim_get_current_line()
+      local function trim(s)
+        return (s:gsub("^%s+", ""):gsub("%s+$", ""))
+      end
+
+      for token in line:gmatch("[^%s:]+") do
+        token = trim(token)
+        token = token:gsub("^[%[%(%{%<%\"%']+", ""):gsub("[%]%)%}%>%\"%']+$", "")
+        token = trim(token)
+        if token ~= "" then
+          local expanded = vim.fn.expand(token)
+          if vim.fn.filereadable(expanded) == 1 or vim.fn.isdirectory(expanded) == 1 then
+            return true
+          end
+        end
+      end
+      return false
+    end
+
+    vim.keymap.set("n", "<CR>", function()
+      if has_openable_path_in_line() then
+        require("config.functions").save_and_goto_nearest_path_in_line()
+      else
+        -- 回退到默认 <CR>
+        local keys = vim.api.nvim_replace_termcodes("<CR>", true, false, true)
+        vim.api.nvim_feedkeys(keys, "n", false)
+      end
+    end, { desc = "Goto nearest path in line (fallback to default <CR>)", buffer = ev.buf })
   end,
 })
 
