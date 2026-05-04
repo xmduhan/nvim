@@ -25,7 +25,7 @@ require("lazy").setup({
   -- require("plugins.markdown"),
 
   -- Git集成
-  -- require("plugins.git"),
+  require("plugins.git"),
 
   -- 对齐工具
   -- require("plugins.align"),
