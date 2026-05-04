@@ -36,8 +36,8 @@ map("n", "<C-S>", ":w<CR>", { desc = "Save file" })
 map("n", "<F3>", function() require("config.functions").toggle_line_numbers() end, { desc = "Toggle line numbers" })
 map("n", "<F7>", ":execute 'r!'.getline('.')<CR>", { desc = "Execute current line" })
 
--- 回车键增强
-map("n", "<CR>", ":w<CR>gf", { desc = "Save and goto file" })
+-- 回车键增强：从本行按 [空格 或 :] 切分，找最近的合法路径(文件/目录)并保存跳转
+map("n", "<CR>", function() require("config.functions").save_and_goto_nearest_path_in_line() end, { desc = "Save and goto nearest path in line" })
 
 -- 配置编辑
 map("n", "<leader>main", ":e ~/.config/nvim/init.lua<CR>", { desc = "Edit main config" })
