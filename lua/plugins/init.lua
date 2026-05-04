@@ -14,30 +14,28 @@ vim.opt.rtp:prepend(lazypath)
 require("lazy").setup({
   -- 插件管理器自身
   { "folke/lazy.nvim", version = "*" },
-  
+
   -- 颜色主题
   -- require("plugins.colorscheme"),
-  
+
   -- 文件浏览器
   -- require("plugins.explorer"),
-  
+
   -- Markdown支持
   -- require("plugins.markdown"),
-  
+
   -- Git集成
   -- require("plugins.git"),
-  
+
   -- 对齐工具
   -- require("plugins.align"),
-  
+
   -- 运动插件
   -- require("plugins.motion"),
-  
+
   -- Flycode插件
-  -- require("plugins.flycode"),
-  
-  -- 其他插件可以在这里添加
-  
+  require("plugins.flycode"),
+
   -- Org模式
   require("plugins.orgmode"),
 }, {
@@ -52,7 +50,3 @@ require("lazy").setup({
     notify = false,
   },
 })
-
-
-
-require("plugins.flycode")
