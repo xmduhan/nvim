@@ -18,7 +18,7 @@ map("n", "<leader>d<space>", ":%s/\\s\\+$//e<CR>", { desc = "Remove trailing spa
 -- 缓冲区导航
 map("n", "<leader>''", ":w<CR>:b#<CR>", { desc = "Switch to previous buffer" })
 map("n", "<leader>q", ":if &modifiable && expand('%:t') != '' | w | endif<CR>:q<CR>", { desc = "Close buffer" })
-map("n", "q", ":if &modifiable && expand('%:t') == '' | w | endif<CR>:bp<bar>sp<bar>bn<bar>bd<CR>", { desc = "Close buffer alternative" })
+map("n", "q", function() require("config.functions").close_buffer_alternative() end, { desc = "Close buffer alternative" })
 
 map("n", "<C-N>", ":w<CR>:bn<CR>", { desc = "Next buffer" })
 map("n", "<C-P>", ":w<CR>:bp<CR>", { desc = "Previous buffer" })

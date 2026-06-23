@@ -56,6 +56,18 @@ local function insert_datetime()
   vim.api.nvim_put({ datetime }, "c", false, true)
 end
 
+-- 关闭当前 buffer，并尽量保持窗口布局/跳转到相邻 buffer
+local function close_buffer_alternative()
+  if vim.bo.modifiable and vim.fn.expand("%:t") == "" then
+    vim.cmd("write")
+  end
+
+  vim.cmd("bp")
+  vim.cmd("sp")
+  vim.cmd("bn")
+  vim.cmd("bd")
+end
+
 local function trim(s)
   return (s:gsub("^%s+", ""):gsub("%s+$", ""))
 end
@@ -166,6 +178,7 @@ M.toggle_line_numbers = toggle_line_numbers
 M.open_or_create_file = open_or_create_file
 M.touch_file_under_cursor = touch_file_under_cursor
 M.insert_datetime = insert_datetime
+M.close_buffer_alternative = close_buffer_alternative
 M.save_and_goto_nearest_path_in_line = save_and_goto_nearest_path_in_line
 
 return M
