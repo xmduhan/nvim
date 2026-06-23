@@ -44,31 +44,27 @@ map("n", "<F7>", function()
   vim.cmd("execute 'r!' .. " .. vim.fn.string(line))
 end, { desc = "Execute current line (strip !xxx: prefix)" })
 
+-- netrw：禁用 netrw 自带 q 行为，统一使用自定义关闭逻辑；不设置 <CR>，保留 netrw 默认回车打开行为。
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = "netrw",
+  callback = function(ev)
+    vim.keymap.set("n", "q", function()
+      require("config.functions").close_buffer_alternative()
+    end, { desc = "Close netrw buffer", buffer = ev.buf, silent = true })
+  end,
+})
+
 -- 回车键增强：从本行按 [空格 或 :] 切分，找最近的合法路径(文件/目录)并保存跳转
 -- 说明：orgmode 常用 <CR>/<TAB> 做折叠/展开。
 -- 这里的策略是：
 -- - 若当前行能解析出“存在的文件/目录路径”，则执行跳转
 -- - 否则回退到该 filetype 原本的 <CR> 行为（不影响 org 的回车折叠/新行等）
+-- - netrw buffer 不设置该映射，避免覆盖 netrw 默认 <Enter> 打开文件/目录行为
 vim.api.nvim_create_autocmd("FileType", {
   pattern = "*",
   callback = function(ev)
-    local rhs = function()
-      local ok = pcall(function()
-        require("config.functions").save_and_goto_nearest_path_in_line()
-      end)
-
-      -- 没有找到路径时 save_and_goto... 会 notify(WARN)；这里用启发式：
-      -- 若执行失败(异常)则直接回退；正常情况下若无路径也不应阻断默认回车。
-      if not ok then
-        local keys = vim.api.nvim_replace_termcodes("<CR>", true, false, true)
-        vim.api.nvim_feedkeys(keys, "n", false)
-        return
-      end
-
-      -- 如果没有跳转，函数内部会提示 warn，但我们仍应回退到默认 <CR>
-      -- 通过检测当前 buffer/光标是否变化不可靠，这里采用更简单的方式：
-      -- 当本行不存在任何可打开的路径时，save_and_goto... 会提前 return。
-      -- 为了不影响 org 的默认行为，我们在调用前先快速探测一次是否存在候选。
+    if vim.bo[ev.buf].filetype == "netrw" then
+      return
     end
 
     local function has_openable_path_in_line()
