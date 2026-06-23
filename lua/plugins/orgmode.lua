@@ -25,8 +25,10 @@ return {
         -- Agenda: scheduled（更亮一些，molokai 下更清晰）
         -- 你的 Inspect：@org.agenda.scheduled org_agenda
         -- 这里同时覆盖 TS capture 与可能存在的传统 group
-        pcall(vim.api.nvim_set_hl, 0, "OrgAgendaScheduled", { fg = "#ffffff", bold = true })
+        pcall(vim.api.nvim_set_hl, 0, "OrgAgendaScheduled", { fg = "#f1f5f9", bold = true })
         pcall(vim.api.nvim_set_hl, 0, "@org.agenda.scheduled", { link = "OrgAgendaScheduled" })
+        pcall(vim.api.nvim_set_hl, 0, "OrgAgendaScheduledPast", { fg = "#0ea5e9", bold = true })
+        pcall(vim.api.nvim_set_hl, 0, "@org.agenda.scheduled_past", { link = "OrgAgendaScheduledPast" })
 
         -- 兼容一些旧/不同命名的 group
         pcall(vim.api.nvim_set_hl, 0, "org_todo_keyword", { link = "OrgTodo" })
