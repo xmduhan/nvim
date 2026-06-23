@@ -56,8 +56,38 @@ local function insert_datetime()
   vim.api.nvim_put({ datetime }, "c", false, true)
 end
 
+local function is_directory_viewer_buffer()
+  local buftype = vim.bo.buftype
+  local filetype = vim.bo.filetype
+  local name = vim.api.nvim_buf_get_name(0)
+
+  -- netrw 打开的目录 buffer 通常 filetype=netrw, buftype=nofile
+  -- nvim-tree / neo-tree / oil 等目录查看器也通常有独立 filetype
+  if vim.tbl_contains({ "netrw", "NvimTree", "neo-tree", "oil" }, filetype) then
+    return true
+  end
+
+  -- 某些情况下直接 :edit 目录时，buffer name 仍然是目录路径
+  if name ~= "" and vim.fn.isdirectory(name) == 1 then
+    return true
+  end
+
+  return buftype == "nofile" and name ~= "" and vim.fn.isdirectory(vim.fn.expand("%:p")) == 1
+end
+
 -- 关闭当前 buffer，并尽量保持窗口布局/跳转到相邻 buffer
 local function close_buffer_alternative()
+  if is_directory_viewer_buffer() then
+    -- 目录查看器通常是 nofile/unmodifiable buffer，不能按普通文件 buffer 的 bp/sp/bn/bd 流程处理。
+    -- 这里优先关闭窗口；如果只剩最后一个窗口，则删除该 buffer，让 q 在目录查看器中也能生效。
+    if vim.fn.winnr("$") > 1 then
+      vim.cmd("close")
+    else
+      vim.cmd("bd")
+    end
+    return
+  end
+
   if vim.bo.modifiable and vim.fn.expand("%:t") == "" then
     vim.cmd("write")
   end
