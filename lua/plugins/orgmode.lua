@@ -14,21 +14,6 @@ return {
         org_agenda_span = "day", -- 默认只看今天
       })
 
-      -- 自定义命令：日/周视图（临时切换）
-      vim.api.nvim_create_user_command("OrgAgendaDay", function()
-        vim.cmd("OrgAgenda day")
-      end, {})
-
-      vim.api.nvim_create_user_command("OrgAgendaWeek", function()
-        vim.cmd("OrgAgenda week")
-      end, {})
-
-      -- 快捷键（按你习惯可改）
-      -- <leader>od: 打开 day agenda
-      -- <leader>ow: 打开 week agenda
-      vim.keymap.set("n", "<leader>od", "<cmd>OrgAgendaDay<cr>", { desc = "Org agenda: day" })
-      vim.keymap.set("n", "<leader>ow", "<cmd>OrgAgendaWeek<cr>", { desc = "Org agenda: week" })
-
       -- 修复/增强 org 中 TODO / DONE 等关键字高亮（避免在 molokai 下不清晰）
       -- 同时增强 agenda 里的 scheduled 标记（你 Inspect 看到的是 @org.agenda.scheduled）
       local function set_org_todo_highlight()
