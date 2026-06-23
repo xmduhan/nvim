@@ -4,7 +4,7 @@ return {
 
     -- 仍然按 org 文件懒加载，但也允许通过命令触发加载（否则你在非 org buffer 里用不了 agenda）
     ft = { "org" },
-    cmd = { "OrgAgenda", "OrgAgendaDay", "OrgAgendaWeek" },
+    cmd = { "OrgAgenda" },
 
     config = function()
       require("orgmode").setup({
