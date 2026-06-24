@@ -75,15 +75,6 @@ local function is_directory_viewer_buffer()
   return buftype == "nofile" and name ~= "" and vim.fn.isdirectory(vim.fn.expand("%:p")) == 1
 end
 
-local function close_buffer_log(message, level)
-  -- q 关闭 netrw 时如果连续 vim.notify，会触发消息区/UI 刷新，造成明显顿挫。
-  -- 默认关闭调试日志；需要排查时可在配置中设置：vim.g.close_buffer_debug = true
-  if not vim.g.close_buffer_debug then
-    return
-  end
-  vim.notify("[close_buffer_alternative] " .. message, level or vim.log.levels.INFO)
-end
-
 -- 轻量关闭目录查看器 buffer，尤其用于 netrw。
 -- 原先直接 :bwipeout! netrw buffer 会触发 netrw 自身和 Neovim 的一串清理事件，体感容易顿挫。
 -- 这里先快速离开当前界面，再把删除旧 buffer 的动作延后到下一轮事件循环。
@@ -101,72 +92,26 @@ local function close_directory_viewer_buffer()
 
   vim.schedule(function()
     if vim.api.nvim_buf_is_valid(buf) then
-      -- pcall(vim.api.nvim_buf_delete, buf, { force = true })
       vim.cmd("bd")
     end
   end)
-
 end
 
 -- 关闭当前 buffer，并尽量保持窗口布局/跳转到相邻 buffer
 local function close_buffer_alternative()
-  local buf = vim.api.nvim_get_current_buf()
-  local buf_name = vim.api.nvim_buf_get_name(buf)
-  local bound_file = vim.fn.expand("%:p")
-  local buftype = vim.bo.buftype
-  local filetype = vim.bo.filetype
-  local modified = vim.bo.modified
-  local modifiable = vim.bo.modifiable
-  local total_windows = vim.fn.winnr("$")
-
-  close_buffer_log("close_buffer_alternative 被调用")
-  close_buffer_log(
-    "调用时当前buffer名称: "
-      .. (buf_name ~= "" and buf_name or "<empty>")
-      .. ", 绑定文件: "
-      .. (bound_file ~= "" and bound_file or "<empty>")
-  )
-  close_buffer_log(
-    "调用时状态: buf="
-      .. tostring(buf)
-      .. ", buftype="
-      .. (buftype ~= "" and buftype or "<empty>")
-      .. ", filetype="
-      .. (filetype ~= "" and filetype or "<empty>")
-      .. ", modified="
-      .. tostring(modified)
-      .. ", modifiable="
-      .. tostring(modifiable)
-      .. ", windows="
-      .. tostring(total_windows)
-  )
-
   if is_directory_viewer_buffer() then
-    close_buffer_log("关键路径: 当前 buffer 被识别为目录查看器，执行轻量关闭")
     close_directory_viewer_buffer()
     return
   end
 
   if vim.bo.modifiable and vim.fn.expand("%:t") == "" then
-    close_buffer_log("关键路径: 当前 buffer 可修改且无文件名，执行 :write")
     vim.cmd("write")
-  else
-    close_buffer_log("关键路径: 跳过无文件名 buffer 写入检查")
   end
 
-  close_buffer_log("关键路径: 执行 :bp")
   vim.cmd("bp")
-
-  close_buffer_log("关键路径: 执行 :sp")
   vim.cmd("sp")
-
-  close_buffer_log("关键路径: 执行 :bn")
   vim.cmd("bn")
-
-  close_buffer_log("关键路径: 执行 :bd")
   vim.cmd("bd")
-
-  close_buffer_log("关键路径: 普通 buffer 关闭流程完成")
 end
 
 local function trim(s)
