@@ -44,13 +44,14 @@ map("n", "<F7>", function()
   vim.cmd("execute 'r!' .. " .. vim.fn.string(line))
 end, { desc = "Execute current line (strip !xxx: prefix)" })
 
--- netrw：禁用 netrw 自带 q 行为，统一使用自定义关闭逻辑；不设置 <CR>，保留 netrw 默认回车打开行为。
+-- netrw：禁用 netrw 自带 q 行为，使用轻量关闭逻辑。
+-- 不设置 <CR>，保留 netrw 默认回车打开行为。
 vim.api.nvim_create_autocmd("FileType", {
   pattern = "netrw",
   callback = function(ev)
     vim.keymap.set("n", "q", function()
-      require("config.functions").close_buffer_alternative()
-    end, { desc = "Close netrw buffer", buffer = ev.buf, silent = true })
+      require("config.functions").close_directory_viewer_buffer()
+    end, { desc = "Close netrw buffer", buffer = ev.buf, silent = true, nowait = true })
   end,
 })
 
