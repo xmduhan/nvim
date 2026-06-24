@@ -1,8 +1,9 @@
 {
   "flash.nvim": { "branch": "main", "commit": "fcea7ff883235d9024dc41e638f164a450c14ca2" },
-  "flycode": { "branch": "master", "commit": "5508b5d70ceaf8cd15663b80103793b10cadb10a" },
+  "flycode": { "branch": "master", "commit": "19be033eae9b6ede9ab97c43377786c50f286194" },
   "lazy.nvim": { "branch": "main", "commit": "85c7ff3711b730b4030d03144f6db6375044ae82" },
-  "orgmode": { "branch": "master", "commit": "f3ea61f6d71486c9062d40efe3c882050758e9b3" },
+  "netrw.nvim": { "branch": "master", "commit": "3f643df59951d9adc4cf348cefe435fcdb5a3671" },
+  "orgmode": { "branch": "master", "commit": "5f3256f80583df3c4a8485e64b9ea8306f5f20ad" },
   "vim-colorschemes": { "branch": "master", "commit": "fd8f122cef604330c96a6a6e434682dbdfb878c9" },
-  "vim-fugitive": { "branch": "master", "commit": "61b51c09b7c9ce04e821f6cf76ea4f6f903e3cf4" }
+  "vim-fugitive": { "branch": "master", "commit": "3b753cf8c6a4dcde6edee8827d464ba9b8c4a6f0" }
 }
