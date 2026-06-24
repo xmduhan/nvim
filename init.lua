@@ -8,6 +8,7 @@ vim.g.maplocalleader = ","
 require("config.options")
 require("config.keymaps")
 require("config.autocmds")
+require("config.local")
 
 -- 延迟加载插件
 require("plugins.init")
