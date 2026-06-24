@@ -44,6 +44,21 @@ map("n", "<F7>", function()
   vim.cmd("execute 'r!' .. " .. vim.fn.string(line))
 end, { desc = "Execute current line (strip !xxx: prefix)" })
 
+-- netrw 缓冲区：<Esc> 先切到下一个 buffer，1 秒后删除原 netrw buffer
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = "netrw",
+  callback = function(ev)
+    vim.keymap.set("n", "<Esc>", function()
+      local bufnr = vim.api.nvim_get_current_buf()
+      vim.cmd("bn")
+      vim.defer_fn(function()
+        if vim.api.nvim_buf_is_valid(bufnr) then
+          pcall(vim.cmd, "bd " .. bufnr)
+        end
+      end, 1000)
+    end, { desc = "Close netrw buffer after switching", buffer = ev.buf, silent = true })
+  end,
+})
 
 -- <CR>：普通 buffer 中若当前行有可打开路径则跳转；排除 netrw 目录缓冲区，避免覆盖其默认回车行为
 vim.api.nvim_create_autocmd("FileType", {
