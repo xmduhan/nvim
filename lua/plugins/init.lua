@@ -18,6 +18,9 @@ require("lazy").setup({
   -- 颜色主题
   require("plugins.colorscheme"),
 
+  -- netrw 增强/替换
+  { "prichrd/netrw.nvim", opts = {} },
+
   -- 文件浏览器
   -- require("plugins.explorer"),
 
