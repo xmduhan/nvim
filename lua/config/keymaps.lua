@@ -44,10 +44,14 @@ map("n", "<F7>", function()
   vim.cmd("execute 'r!' .. " .. vim.fn.string(line))
 end, { desc = "Execute current line (strip !xxx: prefix)" })
 
--- - netrw buffer 不设置该映射，避免覆盖 netrw 默认 <Enter> 打开文件/目录行为
+-- <CR>：普通 buffer 中若当前行有可打开路径则跳转；排除 netrw 目录缓冲区，避免覆盖其默认回车行为
 vim.api.nvim_create_autocmd("FileType", {
   pattern = "*",
   callback = function(ev)
+    if vim.tbl_contains({ "netrw" }, vim.bo[ev.buf].filetype) then
+      return
+    end
+
     local function has_openable_path_in_line()
       local line = vim.api.nvim_get_current_line()
       local function trim(s)
