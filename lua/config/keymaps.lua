@@ -44,30 +44,10 @@ map("n", "<F7>", function()
   vim.cmd("execute 'r!' .. " .. vim.fn.string(line))
 end, { desc = "Execute current line (strip !xxx: prefix)" })
 
--- netrw：禁用 netrw 自带 q 行为，使用轻量关闭逻辑。
--- 不设置 <CR>，保留 netrw 默认回车打开行为。
-vim.api.nvim_create_autocmd("FileType", {
-  pattern = "netrw",
-  callback = function(ev)
-    vim.keymap.set("n", "q", function()
-      require("config.functions").close_directory_viewer_buffer()
-    end, { desc = "Close netrw buffer", buffer = ev.buf, silent = true, nowait = true })
-  end,
-})
-
--- 回车键增强：从本行按 [空格 或 :] 切分，找最近的合法路径(文件/目录)并保存跳转
--- 说明：orgmode 常用 <CR>/<TAB> 做折叠/展开。
--- 这里的策略是：
--- - 若当前行能解析出“存在的文件/目录路径”，则执行跳转
--- - 否则回退到该 filetype 原本的 <CR> 行为（不影响 org 的回车折叠/新行等）
 -- - netrw buffer 不设置该映射，避免覆盖 netrw 默认 <Enter> 打开文件/目录行为
 vim.api.nvim_create_autocmd("FileType", {
   pattern = "*",
   callback = function(ev)
-    if vim.bo[ev.buf].filetype == "netrw" then
-      return
-    end
-
     local function has_openable_path_in_line()
       local line = vim.api.nvim_get_current_line()
       local function trim(s)

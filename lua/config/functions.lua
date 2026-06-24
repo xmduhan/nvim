@@ -75,32 +75,10 @@ local function is_directory_viewer_buffer()
   return buftype == "nofile" and name ~= "" and vim.fn.isdirectory(vim.fn.expand("%:p")) == 1
 end
 
--- 轻量关闭目录查看器 buffer，尤其用于 netrw。
--- 原先直接 :bwipeout! netrw buffer 会触发 netrw 自身和 Neovim 的一串清理事件，体感容易顿挫。
--- 这里先快速离开当前界面，再把删除旧 buffer 的动作延后到下一轮事件循环。
-local function close_directory_viewer_buffer()
-  local buf = vim.api.nvim_get_current_buf()
-  local total_windows = vim.fn.winnr("$")
-
-  if total_windows > 1 then
-    vim.cmd("close")
-    return
-  end
-
-  -- 单窗口时不能 :close，先切到一个空 buffer，让 UI 立即离开 netrw。
-  vim.cmd("enew")
-
-  vim.schedule(function()
-    if vim.api.nvim_buf_is_valid(buf) then
-      vim.cmd("bd")
-    end
-  end)
-end
 
 -- 关闭当前 buffer，并尽量保持窗口布局/跳转到相邻 buffer
 local function close_buffer_alternative()
   if is_directory_viewer_buffer() then
-    close_directory_viewer_buffer()
     return
   end
 
@@ -113,6 +91,7 @@ local function close_buffer_alternative()
   vim.cmd("bn")
   vim.cmd("bd")
 end
+
 
 local function trim(s)
   return (s:gsub("^%s+", ""):gsub("%s+$", ""))
@@ -225,7 +204,6 @@ M.open_or_create_file = open_or_create_file
 M.touch_file_under_cursor = touch_file_under_cursor
 M.insert_datetime = insert_datetime
 M.close_buffer_alternative = close_buffer_alternative
-M.close_directory_viewer_buffer = close_directory_viewer_buffer
 M.save_and_goto_nearest_path_in_line = save_and_goto_nearest_path_in_line
 
 return M
