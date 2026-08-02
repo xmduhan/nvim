@@ -33,9 +33,6 @@ require("lazy").setup({
   -- 运动插件
   require("plugins.motion"),
 
-  -- Flycode插件
-  require("plugins.flycode"),
-
   -- Org模式
   require("plugins.orgmode"),
 }, {
