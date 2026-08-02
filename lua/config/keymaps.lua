@@ -53,7 +53,8 @@ vim.api.nvim_create_autocmd("FileType", {
       vim.cmd("bn")
       vim.defer_fn(function()
         if vim.api.nvim_buf_is_valid(bufnr) then
-          pcall(vim.cmd, "bd " .. bufnr)
+          -- 这里写死了2, 有问题后续思考如何修改
+          vim.cmd("bd 2" ) 
         end
       end, 1000)
     end, { desc = "Close netrw buffer after switching", buffer = ev.buf, silent = true })
