@@ -218,36 +218,58 @@ local function is_terminal_win_valid(win)
   return win and vim.api.nvim_win_is_valid(win)
 end
 
-local function ensure_persistent_terminal_window()
-  if is_terminal_win_valid(persistent_terminal.win) and is_terminal_buf_valid(persistent_terminal.buf) then
-    return persistent_terminal.win, persistent_terminal.buf
+local function set_terminal_window_layout(win)
+  if not is_terminal_win_valid(win) then
+    return
   end
 
-  if is_terminal_buf_valid(persistent_terminal.buf) then
-    vim.cmd("vsplit")
+  local total = vim.o.columns
+  local width = math.max(20, math.floor(total / 2))
+
+  pcall(vim.api.nvim_win_set_width, win, width)
+  pcall(vim.api.nvim_win_call, win, function()
     vim.cmd("wincmd L")
-    local win = vim.api.nvim_get_current_win()
-    vim.api.nvim_win_set_buf(win, persistent_terminal.buf)
-    vim.cmd("vertical resize " .. math.floor(vim.o.columns / 2))
-    persistent_terminal.win = win
-    return persistent_terminal.win, persistent_terminal.buf
+  end)
+end
+
+local function configure_terminal_buffer(buf)
+  if not is_terminal_buf_valid(buf) then
+    return
   end
+
+  vim.bo[buf].bufhidden = "hide"
+  vim.bo[buf].modified = false
+  vim.bo[buf].swapfile = false
+
+  vim.api.nvim_buf_call(buf, function()
+    vim.opt_local.number = false
+    vim.opt_local.relativenumber = false
+    vim.opt_local.signcolumn = "no"
+    vim.opt_local.foldcolumn = "0"
+    vim.opt_local.wrap = false
+  end)
+
+  vim.keymap.set("t", "<C-w>h", [[<C-\><C-n><C-w>h]], { buffer = buf, silent = true, desc = "Back to left edit window" })
+  vim.keymap.set("t", "<Esc>", [[<C-\><C-n>]], { buffer = buf, silent = true, desc = "Terminal normal mode" })
+end
+
+local function create_persistent_terminal_window()
+  local origin_win = vim.api.nvim_get_current_win()
 
   vim.cmd("vsplit")
-  vim.cmd("wincmd L")
-  vim.cmd("vertical resize " .. math.floor(vim.o.columns / 2))
+  local term_win = vim.api.nvim_get_current_win()
+  set_terminal_window_layout(term_win)
 
-  local win = vim.api.nvim_get_current_win()
   vim.cmd("terminal")
   local buf = vim.api.nvim_get_current_buf()
   local job = vim.b.terminal_job_id
 
-  persistent_terminal.win = win
+  persistent_terminal.win = term_win
   persistent_terminal.buf = buf
   persistent_terminal.job = job
 
-  vim.bo[buf].bufhidden = "hide"
-  vim.bo[buf].modified = false
+  configure_terminal_buffer(buf)
+  set_terminal_window_layout(term_win)
 
   vim.api.nvim_create_autocmd({ "BufWipeout", "TermClose" }, {
     buffer = buf,
@@ -261,7 +283,35 @@ local function ensure_persistent_terminal_window()
     end,
   })
 
+  if vim.api.nvim_win_is_valid(origin_win) then
+    vim.api.nvim_set_current_win(origin_win)
+  end
+
   return persistent_terminal.win, persistent_terminal.buf
+end
+
+local function ensure_persistent_terminal_window()
+  if is_terminal_buf_valid(persistent_terminal.buf) then
+    if not is_terminal_win_valid(persistent_terminal.win) then
+      local origin_win = vim.api.nvim_get_current_win()
+      vim.cmd("vsplit")
+      local win = vim.api.nvim_get_current_win()
+      vim.api.nvim_win_set_buf(win, persistent_terminal.buf)
+      persistent_terminal.win = win
+      configure_terminal_buffer(persistent_terminal.buf)
+      set_terminal_window_layout(win)
+
+      if vim.api.nvim_win_is_valid(origin_win) then
+        vim.api.nvim_set_current_win(origin_win)
+      end
+    else
+      set_terminal_window_layout(persistent_terminal.win)
+    end
+
+    return persistent_terminal.win, persistent_terminal.buf
+  end
+
+  return create_persistent_terminal_window()
 end
 
 local function focus_persistent_terminal_insert()
