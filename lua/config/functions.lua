@@ -257,10 +257,8 @@ local function parse_markdown_fence(fence_line)
 end
 
 local function parse_org_src_begin(line)
-  local rest = line:match('^%s*[#+]?begin_src%s+(.*)$')
-    or line:match('^%s*[#+]?BEGIN_SRC%s+(.*)$')
-    or line:match('^%s*[#+]?src_begin%s+(.*)$')
-    or line:match('^%s*[#+]?SRC_BEGIN%s+(.*)$')
+  local rest = line:match("^%s*#%+begin_src%s+(.*)$")
+    or line:match("^%s*#%+BEGIN_SRC%s+(.*)$")
   if not rest then
     return nil, {}
   end
@@ -390,50 +388,196 @@ local function execute_markdown_code_block()
   open_terminal_with_cmd(cmd)
 end
 
-local function execute_org_src_block()
-  vim.cmd("w")
+local function is_org_src_begin_line(line)
+  return line:match("^%s*#%+begin_src\b") ~= nil
+    or line:match("^%s*#%+BEGIN_SRC\b") ~= nil
+end
 
+local function is_org_src_end_line(line)
+  return line:match("^%s*#%+end_src\b") ~= nil
+    or line:match("^%s*#%+END_SRC\b") ~= nil
+end
+
+local function is_org_heading_line(line)
+  return line:match("^%*+%s") ~= nil
+end
+
+local function is_org_meta_line(line)
+  return line:match("^%s*#%+") ~= nil
+end
+
+local function is_plain_code_terminator(line)
+  local t = trim(line)
+  if t == "" then
+    return true
+  end
+  if is_org_heading_line(line) then
+    return true
+  end
+  if is_org_meta_line(line) then
+    return true
+  end
+  if t == "输出：" or t:match("^输出[:：]") then
+    return true
+  end
+  if t:match("^[0-9一二三四五六七八九十]+[%.、]") then
+    return true
+  end
+  if t:match("^[-=]+$") then
+    return true
+  end
+  return false
+end
+
+local function looks_like_python_line(line)
+  local t = trim(line)
+  if t == "" then
+    return false
+  end
+
+  if t:match("^import%s+[%w_%.]+") then
+    return true
+  end
+  if t:match("^from%s+[%w_%.]+%s+import%s+") then
+    return true
+  end
+  if t:match("^print%(") then
+    return true
+  end
+  if t:match("^[%w_]+%s*=%s*") then
+    return true
+  end
+  if t:match("^for%s+.+:%s*$") or t:match("^while%s+.+:%s*$") or t:match("^if%s+.+:%s*$") then
+    return true
+  end
+  if t:match("^def%s+[%w_]+%s*%(") or t:match("^class%s+[%w_]+") then
+    return true
+  end
+  return false
+end
+
+local function looks_like_lua_line(line)
+  local t = trim(line)
+  if t == "" then
+    return false
+  end
+
+  if t:match("^local%s+") then
+    return true
+  end
+  if t:match("^print%(") then
+    return true
+  end
+  if t:match("^function%s+") or t:match("^for%s+") or t:match("^if%s+") then
+    return true
+  end
+  return false
+end
+
+local function looks_like_shell_line(line)
+  local t = trim(line)
+  if t == "" then
+    return false
+  end
+
+  if t:match("^echo%s+") or t:match("^cd%s+") or t:match("^ls%s*") then
+    return true
+  end
+  if t:match("^[%w_]+=%S+") then
+    return true
+  end
+  if t:match("^if%s+") or t:match("^for%s+") then
+    return true
+  end
+  return false
+end
+
+local function looks_like_javascript_line(line)
+  local t = trim(line)
+  if t == "" then
+    return false
+  end
+
+  if t:match("^const%s+") or t:match("^let%s+") or t:match("^var%s+") then
+    return true
+  end
+  if t:match("^console%.log%(") then
+    return true
+  end
+  if t:match("^function%s+") or t:match("=>") then
+    return true
+  end
+  return false
+end
+
+local function detect_code_language(lines)
+  local score = {
+    python = 0,
+    lua = 0,
+    sh = 0,
+    javascript = 0,
+  }
+
+  for _, line in ipairs(lines) do
+    if looks_like_python_line(line) then
+      score.python = score.python + 2
+    end
+    if looks_like_lua_line(line) then
+      score.lua = score.lua + 1
+    end
+    if looks_like_shell_line(line) then
+      score.sh = score.sh + 1
+    end
+    if looks_like_javascript_line(line) then
+      score.javascript = score.javascript + 1
+    end
+  end
+
+  local best_lang = nil
+  local best_score = 0
+  for lang, s in pairs(score) do
+    if s > best_score then
+      best_lang = lang
+      best_score = s
+    end
+  end
+
+  if best_score <= 0 then
+    return nil
+  end
+
+  return best_lang
+end
+
+local function collect_plain_org_code_block()
   local current_line = vim.fn.line(".")
   local total_lines = vim.fn.line("$")
+  local current_text = vim.fn.getline(current_line)
+
+  if is_plain_code_terminator(current_text) then
+    return nil, nil
+  end
 
   local start_line = current_line
-  while start_line >= 1 do
-    local line_content = vim.fn.getline(start_line)
-    if line_content:match('^%s*[#+]?begin_src\b')
-      or line_content:match('^%s*[#+]?BEGIN_SRC\b')
-      or line_content:match('^%s*[#+]?src_begin\b')
-      or line_content:match('^%s*[#+]?SRC_BEGIN\b') then
+  while start_line > 1 do
+    local prev = vim.fn.getline(start_line - 1)
+    if is_plain_code_terminator(prev) then
       break
     end
     start_line = start_line - 1
   end
 
-  if start_line < 1 then
-    vim.notify("No org src block found (missing begin_src)", vim.log.levels.WARN)
-    return
-  end
-
   local end_line = current_line
-  while end_line <= total_lines do
-    local line_content = vim.fn.getline(end_line)
-    if end_line ~= start_line and (
-      line_content:match('^%s*[#+]?end_src\b')
-      or line_content:match('^%s*[#+]?END_SRC\b')
-      or line_content:match('^%s*[#+]?src_end\b')
-      or line_content:match('^%s*[#+]?SRC_END\b')
-    ) then
+  while end_line < total_lines do
+    local nxt = vim.fn.getline(end_line + 1)
+    if is_plain_code_terminator(nxt) then
       break
     end
     end_line = end_line + 1
   end
 
-  if end_line > total_lines then
-    vim.notify("Unclosed org src block (missing end_src)", vim.log.levels.WARN)
-    return
-  end
-
   local code_lines = {}
-  for i = start_line + 1, end_line - 1 do
+  for i = start_line, end_line do
     table.insert(code_lines, vim.fn.getline(i))
   end
 
@@ -446,18 +590,101 @@ local function execute_org_src_block()
   end
 
   if not has_nonempty then
-    vim.notify("No code found in this org src block", vim.log.levels.WARN)
+    return nil, nil
+  end
+
+  local lang = detect_code_language(code_lines)
+  if not lang then
+    return nil, nil
+  end
+
+  return code_lines, lang
+end
+
+local function execute_org_src_block()
+  vim.cmd("w")
+
+  local current_line = vim.fn.line(".")
+  local total_lines = vim.fn.line("$")
+
+  local start_line = current_line
+  while start_line >= 1 do
+    local line_content = vim.fn.getline(start_line)
+    if is_org_src_begin_line(line_content) then
+      break
+    end
+    if start_line ~= current_line and is_org_src_end_line(line_content) then
+      break
+    end
+    start_line = start_line - 1
+  end
+
+  if start_line >= 1 and is_org_src_begin_line(vim.fn.getline(start_line)) then
+    local end_line = start_line + 1
+    while end_line <= total_lines do
+      local line_content = vim.fn.getline(end_line)
+      if is_org_src_end_line(line_content) then
+        break
+      end
+      end_line = end_line + 1
+    end
+
+    if end_line > total_lines then
+      vim.notify("Unclosed org src block (missing #+end_src)", vim.log.levels.WARN)
+      return
+    end
+
+    if current_line > end_line then
+      vim.notify("Cursor is not inside an org src block", vim.log.levels.WARN)
+      return
+    end
+
+    local code_lines = {}
+    for i = start_line + 1, end_line - 1 do
+      table.insert(code_lines, vim.fn.getline(i))
+    end
+
+    local has_nonempty = false
+    for _, l in ipairs(code_lines) do
+      if trim(l) ~= "" then
+        has_nonempty = true
+        break
+      end
+    end
+
+    if not has_nonempty then
+      vim.notify("No code found in this org src block", vim.log.levels.WARN)
+      return
+    end
+
+    local begin_line = vim.fn.getline(start_line)
+    local lang, args = parse_org_src_begin(begin_line)
+    local temp_file = write_temp_file(code_lines, ".orgsrc")
+    if not temp_file then
+      return
+    end
+
+    local cmd = build_code_block_command(lang, args, temp_file)
+    if not cmd then
+      return
+    end
+
+    open_terminal_with_cmd(cmd)
     return
   end
 
-  local begin_line = vim.fn.getline(start_line)
-  local lang, args = parse_org_src_begin(begin_line)
-  local temp_file = write_temp_file(code_lines, ".orgsrc")
+  local plain_code_lines, detected_lang = collect_plain_org_code_block()
+  if not plain_code_lines or not detected_lang then
+    vim.notify("No org src block found, and no runnable plain code block detected", vim.log.levels.WARN)
+    return
+  end
+
+  local temp_file = write_temp_file(plain_code_lines, ".orgplain")
   if not temp_file then
     return
   end
 
-  local cmd = build_code_block_command(lang, args, temp_file)
+  local cmd = build_code_block_command(detected_lang, {}, temp_file)
   if not cmd then
     return
   end
