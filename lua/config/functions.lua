@@ -205,7 +205,9 @@ local function shell_join(args)
 end
 
 local function open_terminal_with_cmd(cmd)
-  vim.cmd("new")
+  vim.cmd("vsplit")
+  vim.cmd("wincmd L")
+  vim.cmd("vertical resize " .. math.floor(vim.o.columns / 2))
   vim.cmd("term " .. cmd)
   vim.cmd("startinsert")
 end
