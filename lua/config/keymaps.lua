@@ -38,8 +38,6 @@ map("n", "<F3>", function() require("config.functions").toggle_line_numbers() en
 -- F7：执行当前行作为 shell 命令；若以 "!xxx:" 开头则去掉该前缀再执行
 map("n", "<F7>", function()
   local line = vim.api.nvim_get_current_line()
-  -- 匹配：可选前导空白 + !任意非冒号内容:
-  -- 例："!sh: ls -alh" => "ls -alh"
   line = line:gsub("^%s*!([^:]*):%s*", "")
   vim.cmd("execute 'r!' .. " .. vim.fn.string(line))
 end, { desc = "Execute current line (strip !xxx: prefix)" })
@@ -53,8 +51,7 @@ vim.api.nvim_create_autocmd("FileType", {
       vim.cmd("bn")
       vim.defer_fn(function()
         if vim.api.nvim_buf_is_valid(bufnr) then
-          -- 这里写死了2, 有问题后续思考如何修改
-          vim.cmd("bd 2" ) 
+          vim.cmd("bd 2")
         end
       end, 1000)
     end, { desc = "Close netrw buffer after switching", buffer = ev.buf, silent = true })
@@ -119,7 +116,6 @@ vim.api.nvim_create_autocmd("FileType", {
       if has_openable_path_in_line() then
         require("config.functions").save_and_goto_nearest_path_in_line()
       else
-        -- 回退到默认 <CR>
         local keys = vim.api.nvim_replace_termcodes("<CR>", true, false, true)
         vim.api.nvim_feedkeys(keys, "n", false)
       end
