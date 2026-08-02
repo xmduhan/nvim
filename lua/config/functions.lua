@@ -204,12 +204,100 @@ local function shell_join(args)
   return table.concat(escaped, " ")
 end
 
-local function open_terminal_with_cmd(cmd)
+local persistent_terminal = {
+  buf = nil,
+  win = nil,
+  job = nil,
+}
+
+local function is_terminal_buf_valid(buf)
+  return buf and vim.api.nvim_buf_is_valid(buf)
+end
+
+local function is_terminal_win_valid(win)
+  return win and vim.api.nvim_win_is_valid(win)
+end
+
+local function ensure_persistent_terminal_window()
+  if is_terminal_win_valid(persistent_terminal.win) and is_terminal_buf_valid(persistent_terminal.buf) then
+    return persistent_terminal.win, persistent_terminal.buf
+  end
+
+  if is_terminal_buf_valid(persistent_terminal.buf) then
+    vim.cmd("vsplit")
+    vim.cmd("wincmd L")
+    local win = vim.api.nvim_get_current_win()
+    vim.api.nvim_win_set_buf(win, persistent_terminal.buf)
+    vim.cmd("vertical resize " .. math.floor(vim.o.columns / 2))
+    persistent_terminal.win = win
+    return persistent_terminal.win, persistent_terminal.buf
+  end
+
   vim.cmd("vsplit")
   vim.cmd("wincmd L")
   vim.cmd("vertical resize " .. math.floor(vim.o.columns / 2))
-  vim.cmd("term " .. cmd)
-  vim.cmd("startinsert")
+
+  local win = vim.api.nvim_get_current_win()
+  vim.cmd("terminal")
+  local buf = vim.api.nvim_get_current_buf()
+  local job = vim.b.terminal_job_id
+
+  persistent_terminal.win = win
+  persistent_terminal.buf = buf
+  persistent_terminal.job = job
+
+  vim.bo[buf].bufhidden = "hide"
+  vim.bo[buf].modified = false
+
+  vim.api.nvim_create_autocmd({ "BufWipeout", "TermClose" }, {
+    buffer = buf,
+    once = false,
+    callback = function()
+      if persistent_terminal.buf == buf then
+        persistent_terminal.buf = nil
+        persistent_terminal.win = nil
+        persistent_terminal.job = nil
+      end
+    end,
+  })
+
+  return persistent_terminal.win, persistent_terminal.buf
+end
+
+local function focus_persistent_terminal_insert()
+  local win, _ = ensure_persistent_terminal_window()
+  if is_terminal_win_valid(win) then
+    vim.api.nvim_set_current_win(win)
+    vim.cmd("startinsert")
+  end
+end
+
+local function send_command_to_persistent_terminal(cmd)
+  local _, buf = ensure_persistent_terminal_window()
+  local job = persistent_terminal.job
+
+  if (not job or job <= 0) and is_terminal_buf_valid(buf) then
+    job = vim.b[buf].terminal_job_id
+    persistent_terminal.job = job
+  end
+
+  if not job or job <= 0 then
+    vim.notify("Terminal job is not available", vim.log.levels.ERROR)
+    return false
+  end
+
+  local ok = vim.fn.chansend(job, cmd .. "\n")
+  if ok == 0 then
+    vim.notify("Failed to send command to terminal", vim.log.levels.ERROR)
+    return false
+  end
+
+  focus_persistent_terminal_insert()
+  return true
+end
+
+local function open_terminal_with_cmd(cmd)
+  return send_command_to_persistent_terminal(cmd)
 end
 
 local function write_temp_file(lines, suffix)
@@ -705,5 +793,6 @@ M.close_buffer_alternative = close_buffer_alternative
 M.save_and_goto_nearest_path_in_line = save_and_goto_nearest_path_in_line
 M.execute_markdown_code_block = execute_markdown_code_block
 M.execute_org_src_block = execute_org_src_block
+M.focus_persistent_terminal_insert = focus_persistent_terminal_insert
 
 return M
