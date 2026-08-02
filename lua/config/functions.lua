@@ -196,6 +196,275 @@ local function save_and_goto_nearest_path_in_line()
   vim.cmd("edit " .. vim.fn.fnameescape(target))
 end
 
+local function shell_join(args)
+  local escaped = {}
+  for _, a in ipairs(args or {}) do
+    table.insert(escaped, vim.fn.shellescape(a))
+  end
+  return table.concat(escaped, " ")
+end
+
+local function open_terminal_with_cmd(cmd)
+  vim.cmd("new")
+  vim.cmd("term " .. cmd)
+  vim.cmd("startinsert")
+end
+
+local function write_temp_file(lines, suffix)
+  local temp_file = vim.fn.tempname() .. suffix
+  local file = io.open(temp_file, "w")
+  if not file then
+    vim.notify("Failed to create temp file: " .. temp_file, vim.log.levels.ERROR)
+    return nil
+  end
+  for _, line in ipairs(lines) do
+    file:write(line .. "\n")
+  end
+  file:close()
+  return temp_file
+end
+
+local function parse_markdown_fence(fence_line)
+  local rest = fence_line:match("^```%s*(.*)$")
+  if not rest then
+    return nil, {}
+  end
+
+  rest = trim(rest)
+  if rest == "" then
+    return nil, {}
+  end
+
+  local tokens = {}
+  for t in rest:gmatch("%S+") do
+    table.insert(tokens, t)
+  end
+
+  local lang = tokens[1]
+  if not lang or lang == "" then
+    return nil, {}
+  end
+
+  lang = lang:gsub("%b{}", "")
+  lang = lang:lower()
+
+  local args = {}
+  for i = 2, #tokens do
+    table.insert(args, tokens[i])
+  end
+
+  return lang, args
+end
+
+local function parse_org_src_begin(line)
+  local rest = line:match('^%s*[#+]?begin_src%s+(.*)$')
+    or line:match('^%s*[#+]?BEGIN_SRC%s+(.*)$')
+    or line:match('^%s*[#+]?src_begin%s+(.*)$')
+    or line:match('^%s*[#+]?SRC_BEGIN%s+(.*)$')
+  if not rest then
+    return nil, {}
+  end
+
+  rest = trim(rest)
+  if rest == "" then
+    return nil, {}
+  end
+
+  local tokens = {}
+  for t in rest:gmatch("%S+") do
+    table.insert(tokens, t)
+  end
+
+  local lang = tokens[1]
+  if not lang or lang == "" then
+    return nil, {}
+  end
+
+  lang = lang:lower()
+
+  local args = {}
+  for i = 2, #tokens do
+    table.insert(args, tokens[i])
+  end
+
+  return lang, args
+end
+
+local function build_code_block_command(lang, args, temp_file)
+  local cmd
+  if lang == "python" or lang == "py" then
+    cmd = "python3 " .. vim.fn.shellescape(temp_file)
+  elseif lang == "javascript" or lang == "js" then
+    cmd = "node " .. vim.fn.shellescape(temp_file)
+  elseif lang == "typescript" or lang == "ts" then
+    cmd = "ts-node " .. vim.fn.shellescape(temp_file)
+  elseif lang == "bash" or lang == "sh" or lang == "shell" or lang == "zsh" then
+    cmd = "bash " .. vim.fn.shellescape(temp_file)
+  elseif lang == "lua" then
+    cmd = "lua " .. vim.fn.shellescape(temp_file)
+  elseif lang == "ruby" or lang == "rb" then
+    cmd = "ruby " .. vim.fn.shellescape(temp_file)
+  elseif lang == "flycode" then
+    local fly_args = {}
+    for _, a in ipairs(args or {}) do
+      table.insert(fly_args, a)
+    end
+    table.insert(fly_args, temp_file)
+    cmd = "flycode " .. shell_join(fly_args)
+  else
+    local hint = lang and ("Unknown code block language: " .. lang) or "Missing code block language"
+    vim.notify(
+      hint .. ". Supported: python/js/ts/bash/sh/lua/ruby/flycode. Example: ```flycode <subcmd> <model>",
+      vim.log.levels.WARN
+    )
+    return nil
+  end
+
+  return cmd
+end
+
+local function execute_markdown_code_block()
+  vim.cmd("w")
+
+  local current_line = vim.fn.line(".")
+
+  local start_line = current_line
+  while start_line > 1 do
+    local line_content = vim.fn.getline(start_line)
+    if line_content:match("^```") then
+      break
+    end
+    start_line = start_line - 1
+  end
+
+  if start_line == 1 and not vim.fn.getline(start_line):match("^```") then
+    vim.notify("No fenced code block found (missing ```)", vim.log.levels.WARN)
+    return
+  end
+
+  local end_line = current_line
+  local total_lines = vim.fn.line("$")
+  while end_line <= total_lines do
+    local line_content = vim.fn.getline(end_line)
+    if line_content:match("^```") and end_line ~= start_line then
+      break
+    end
+    end_line = end_line + 1
+  end
+
+  if end_line > total_lines then
+    vim.notify("Unclosed fenced code block (missing closing ```)", vim.log.levels.WARN)
+    return
+  end
+
+  local code_lines = {}
+  for i = start_line + 1, end_line - 1 do
+    table.insert(code_lines, vim.fn.getline(i))
+  end
+
+  local has_nonempty = false
+  for _, l in ipairs(code_lines) do
+    if trim(l) ~= "" then
+      has_nonempty = true
+      break
+    end
+  end
+
+  if not has_nonempty then
+    vim.notify("No code found in this fenced block", vim.log.levels.WARN)
+    return
+  end
+
+  local fence = vim.fn.getline(start_line)
+  local lang, args = parse_markdown_fence(fence)
+  local temp_file = write_temp_file(code_lines, ".flycode")
+  if not temp_file then
+    return
+  end
+
+  local cmd = build_code_block_command(lang, args, temp_file)
+  if not cmd then
+    return
+  end
+
+  open_terminal_with_cmd(cmd)
+end
+
+local function execute_org_src_block()
+  vim.cmd("w")
+
+  local current_line = vim.fn.line(".")
+  local total_lines = vim.fn.line("$")
+
+  local start_line = current_line
+  while start_line >= 1 do
+    local line_content = vim.fn.getline(start_line)
+    if line_content:match('^%s*[#+]?begin_src\b')
+      or line_content:match('^%s*[#+]?BEGIN_SRC\b')
+      or line_content:match('^%s*[#+]?src_begin\b')
+      or line_content:match('^%s*[#+]?SRC_BEGIN\b') then
+      break
+    end
+    start_line = start_line - 1
+  end
+
+  if start_line < 1 then
+    vim.notify("No org src block found (missing begin_src)", vim.log.levels.WARN)
+    return
+  end
+
+  local end_line = current_line
+  while end_line <= total_lines do
+    local line_content = vim.fn.getline(end_line)
+    if end_line ~= start_line and (
+      line_content:match('^%s*[#+]?end_src\b')
+      or line_content:match('^%s*[#+]?END_SRC\b')
+      or line_content:match('^%s*[#+]?src_end\b')
+      or line_content:match('^%s*[#+]?SRC_END\b')
+    ) then
+      break
+    end
+    end_line = end_line + 1
+  end
+
+  if end_line > total_lines then
+    vim.notify("Unclosed org src block (missing end_src)", vim.log.levels.WARN)
+    return
+  end
+
+  local code_lines = {}
+  for i = start_line + 1, end_line - 1 do
+    table.insert(code_lines, vim.fn.getline(i))
+  end
+
+  local has_nonempty = false
+  for _, l in ipairs(code_lines) do
+    if trim(l) ~= "" then
+      has_nonempty = true
+      break
+    end
+  end
+
+  if not has_nonempty then
+    vim.notify("No code found in this org src block", vim.log.levels.WARN)
+    return
+  end
+
+  local begin_line = vim.fn.getline(start_line)
+  local lang, args = parse_org_src_begin(begin_line)
+  local temp_file = write_temp_file(code_lines, ".orgsrc")
+  if not temp_file then
+    return
+  end
+
+  local cmd = build_code_block_command(lang, args, temp_file)
+  if not cmd then
+    return
+  end
+
+  open_terminal_with_cmd(cmd)
+end
+
 -- 导出函数
 local M = {}
 
@@ -205,5 +474,7 @@ M.touch_file_under_cursor = touch_file_under_cursor
 M.insert_datetime = insert_datetime
 M.close_buffer_alternative = close_buffer_alternative
 M.save_and_goto_nearest_path_in_line = save_and_goto_nearest_path_in_line
+M.execute_markdown_code_block = execute_markdown_code_block
+M.execute_org_src_block = execute_org_src_block
 
 return M

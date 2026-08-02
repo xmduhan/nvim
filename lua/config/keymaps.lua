@@ -61,6 +61,32 @@ vim.api.nvim_create_autocmd("FileType", {
   end,
 })
 
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = "markdown",
+  callback = function(ev)
+    vim.keymap.set("n", "<F8>", function()
+      require("config.functions").execute_markdown_code_block()
+    end, {
+      desc = "Execute Markdown code block",
+      buffer = ev.buf,
+      silent = true,
+    })
+  end,
+})
+
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = "org",
+  callback = function(ev)
+    vim.keymap.set("n", "<F8>", function()
+      require("config.functions").execute_org_src_block()
+    end, {
+      desc = "Execute Org src block",
+      buffer = ev.buf,
+      silent = true,
+    })
+  end,
+})
+
 -- <CR>：普通 buffer 中若当前行有可打开路径则跳转；排除 netrw 目录缓冲区，避免覆盖其默认回车行为
 vim.api.nvim_create_autocmd("FileType", {
   pattern = "*",
