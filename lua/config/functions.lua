@@ -450,12 +450,17 @@ local function build_code_block_command(lang, args, temp_file)
     table.insert(fly_args, temp_file)
     cmd = "flycode " .. shell_join(fly_args)
   else
-    local hint = lang and ("Unknown code block language: " .. lang) or "Missing code block language"
-    vim.notify(
-      hint .. ". Supported: python/js/ts/bash/sh/lua/ruby/flycode. Example: ```flycode <subcmd> <model>",
-      vim.log.levels.WARN
-    )
-    return nil
+    if not lang or lang == "" then
+      vim.notify("Missing code block language", vim.log.levels.WARN)
+      return nil
+    end
+
+    local generic_args = { lang }
+    for _, a in ipairs(args or {}) do
+      table.insert(generic_args, a)
+    end
+    table.insert(generic_args, temp_file)
+    cmd = shell_join(generic_args)
   end
 
   return cmd
